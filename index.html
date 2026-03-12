@@ -1,0 +1,1294 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VELOCITY — Real-Time Speed Tracker</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;600;700&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #050810;
+        --bg2: #080d1a;
+        --panel: rgba(10, 20, 45, 0.85);
+        --accent: #00e5ff;
+        --accent2: #ff3d5a;
+        --accent3: #7fff00;
+        --gold: #ffd700;
+        --text: #e0f0ff;
+        --muted: #4a6080;
+        --glow: 0 0 20px rgba(0, 229, 255, 0.4);
+        --glow2: 0 0 30px rgba(0, 229, 255, 0.2);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Rajdhani", sans-serif;
+        min-height: 100vh;
+        overflow-x: hidden;
+        position: relative;
+      }
+
+      /* Animated background grid */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px);
+        background-size: 50px 50px;
+        animation: gridMove 20s linear infinite;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(
+          ellipse 80% 60% at 50% 50%,
+          rgba(0, 60, 120, 0.18) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      @keyframes gridMove {
+        0% {
+          transform: translateY(0);
+        }
+        100% {
+          transform: translateY(50px);
+        }
+      }
+
+      .container {
+        position: relative;
+        z-index: 1;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px 20px;
+      }
+
+      /* Header */
+      header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      .logo {
+        font-family: "Orbitron", monospace;
+        font-weight: 900;
+        font-size: clamp(2.2rem, 7vw, 4rem);
+        letter-spacing: 0.25em;
+        color: var(--accent);
+        text-shadow:
+          0 0 30px rgba(0, 229, 255, 0.7),
+          0 0 80px rgba(0, 229, 255, 0.3);
+        position: relative;
+        display: inline-block;
+      }
+
+      .logo::after {
+        content: "VELOCITY";
+        position: absolute;
+        inset: 0;
+        color: transparent;
+        background: linear-gradient(
+          135deg,
+          var(--accent) 0%,
+          #fff 50%,
+          var(--accent) 100%
+        );
+        background-size: 200% 200%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        animation: shimmer 3s ease-in-out infinite;
+      }
+
+      @keyframes shimmer {
+        0%,
+        100% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+      }
+
+      .tagline {
+        font-family: "Share Tech Mono", monospace;
+        font-size: 0.75rem;
+        color: var(--muted);
+        letter-spacing: 0.4em;
+        margin-top: 6px;
+        text-transform: uppercase;
+      }
+
+      /* Status bar */
+      .status-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 28px;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--muted);
+        box-shadow: none;
+        transition: all 0.4s;
+      }
+      .status-dot.active {
+        background: var(--accent3);
+        box-shadow: 0 0 12px var(--accent3);
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      .status-dot.error {
+        background: var(--accent2);
+        box-shadow: 0 0 12px var(--accent2);
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      .status-text {
+        font-family: "Share Tech Mono", monospace;
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+
+      /* Main speedometer */
+      .speedo-wrap {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 28px;
+      }
+
+      .speedo-container {
+        position: relative;
+        width: 320px;
+        height: 320px;
+      }
+
+      canvas#speedo {
+        width: 100%;
+        height: 100%;
+        filter: drop-shadow(0 0 24px rgba(0, 229, 255, 0.25));
+      }
+
+      .speed-readout {
+        position: absolute;
+        bottom: 52px;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+      }
+
+      .speed-value {
+        font-family: "Orbitron", monospace;
+        font-weight: 900;
+        font-size: 3.8rem;
+        line-height: 1;
+        color: #fff;
+        text-shadow: 0 0 20px rgba(0, 229, 255, 0.8);
+        transition: color 0.3s;
+      }
+
+      .speed-unit {
+        font-family: "Share Tech Mono", monospace;
+        font-size: 0.85rem;
+        color: var(--accent);
+        letter-spacing: 0.3em;
+        margin-top: 2px;
+      }
+
+      /* Stats grid */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-bottom: 22px;
+      }
+
+      .stat-card {
+        background: var(--panel);
+        border: 1px solid rgba(0, 229, 255, 0.12);
+        border-radius: 10px;
+        padding: 16px 14px;
+        position: relative;
+        overflow: hidden;
+        backdrop-filter: blur(10px);
+        transition:
+          border-color 0.3s,
+          box-shadow 0.3s;
+      }
+
+      .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--accent),
+          transparent
+        );
+        opacity: 0.5;
+      }
+
+      .stat-card:hover {
+        border-color: rgba(0, 229, 255, 0.35);
+        box-shadow: var(--glow2);
+      }
+
+      .stat-label {
+        font-family: "Share Tech Mono", monospace;
+        font-size: 0.62rem;
+        color: var(--muted);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      .stat-value {
+        font-family: "Orbitron", monospace;
+        font-weight: 700;
+        font-size: 1.5rem;
+        color: var(--accent);
+        text-shadow: 0 0 10px rgba(0, 229, 255, 0.4);
+        transition: all 0.3s;
+      }
+
+      .stat-value.peak {
+        color: var(--gold);
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+      }
+      .stat-value.alt {
+        color: #b388ff;
+        text-shadow: 0 0 10px rgba(179, 136, 255, 0.4);
+      }
+
+      .stat-sub {
+        font-size: 0.65rem;
+        color: var(--muted);
+        font-family: "Share Tech Mono", monospace;
+        margin-top: 3px;
+      }
+
+      /* Unit toggle */
+      .unit-toggle {
+        display: flex;
+        justify-content: center;
+        gap: 0;
+        margin-bottom: 22px;
+      }
+
+      .unit-btn {
+        font-family: "Orbitron", monospace;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        padding: 9px 22px;
+        border: 1px solid rgba(0, 229, 255, 0.25);
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        transition: all 0.25s;
+      }
+      .unit-btn:first-child {
+        border-radius: 6px 0 0 6px;
+      }
+      .unit-btn:last-child {
+        border-radius: 0 6px 6px 0;
+      }
+      .unit-btn.active {
+        background: rgba(0, 229, 255, 0.15);
+        color: var(--accent);
+        border-color: var(--accent);
+        box-shadow: 0 0 14px rgba(0, 229, 255, 0.2);
+      }
+      .unit-btn:hover:not(.active) {
+        color: var(--text);
+        border-color: rgba(0, 229, 255, 0.4);
+      }
+
+      /* Graph */
+      .graph-section {
+        background: var(--panel);
+        border: 1px solid rgba(0, 229, 255, 0.1);
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-bottom: 22px;
+        backdrop-filter: blur(10px);
+      }
+
+      .graph-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+      }
+
+      .graph-title {
+        font-family: "Share Tech Mono", monospace;
+        font-size: 0.68rem;
+        color: var(--muted);
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .graph-legend {
+        display: flex;
+        gap: 14px;
+        font-family: "Share Tech Mono", monospace;
+        font-size: 0.6rem;
+        color: var(--muted);
+      }
+
+      .legend-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 5px;
+      }
+
+      canvas#graph {
+        width: 100%;
+        height: 100px;
+        display: block;
+      }
+
+      /* GPS info */
+      .gps-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 22px;
+      }
+
+      .gps-card {
+        background: var(--panel);
+        border: 1px solid rgba(0, 229, 255, 0.1);
+        border-radius: 10px;
+        padding: 14px 16px;
+        backdrop-filter: blur(10px);
+      }
+
+      .gps-label {
+        font-family: "Share Tech Mono", monospace;
+        font-size: 0.6rem;
+        color: var(--muted);
+        letter-spacing: 0.2em;
+        margin-bottom: 6px;
+      }
+
+      .gps-value {
+        font-family: "Share Tech Mono", monospace;
+        font-size: 0.9rem;
+        color: var(--text);
+      }
+
+      /* Start/Stop */
+      .action-row {
+        display: flex;
+        justify-content: center;
+        gap: 14px;
+      }
+
+      .btn {
+        font-family: "Orbitron", monospace;
+        font-weight: 700;
+        font-size: 0.75rem;
+        letter-spacing: 0.2em;
+        padding: 13px 32px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.25s;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .btn-start {
+        background: linear-gradient(
+          135deg,
+          rgba(0, 229, 255, 0.2),
+          rgba(0, 180, 200, 0.3)
+        );
+        border: 1px solid var(--accent);
+        color: var(--accent);
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.15);
+      }
+      .btn-start:hover {
+        background: linear-gradient(
+          135deg,
+          rgba(0, 229, 255, 0.35),
+          rgba(0, 180, 200, 0.45)
+        );
+        box-shadow: 0 0 30px rgba(0, 229, 255, 0.35);
+        transform: translateY(-1px);
+      }
+
+      .btn-reset {
+        background: transparent;
+        border: 1px solid rgba(255, 61, 90, 0.4);
+        color: var(--accent2);
+      }
+      .btn-reset:hover {
+        background: rgba(255, 61, 90, 0.1);
+        border-color: var(--accent2);
+        box-shadow: 0 0 20px rgba(255, 61, 90, 0.2);
+      }
+
+      /* Permission overlay */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(5, 8, 16, 0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        text-align: center;
+        padding: 30px;
+        backdrop-filter: blur(8px);
+      }
+      .overlay.hidden {
+        display: none;
+      }
+
+      .overlay-icon {
+        font-size: 3.5rem;
+        margin-bottom: 20px;
+        animation: float 3s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-12px);
+        }
+      }
+
+      .overlay h2 {
+        font-family: "Orbitron", monospace;
+        font-size: 1.4rem;
+        color: var(--accent);
+        margin-bottom: 12px;
+        letter-spacing: 0.12em;
+      }
+
+      .overlay p {
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1.6;
+        max-width: 340px;
+        margin-bottom: 28px;
+      }
+
+      /* Accuracy indicator */
+      .accuracy-bar {
+        height: 3px;
+        background: rgba(0, 229, 255, 0.1);
+        border-radius: 2px;
+        margin-top: 8px;
+        overflow: hidden;
+      }
+
+      .accuracy-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent2), var(--accent3));
+        border-radius: 2px;
+        transition: width 0.6s ease;
+        width: 0%;
+      }
+
+      /* Compass */
+      .compass-wrap {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 22px;
+        gap: 30px;
+      }
+
+      .compass {
+        position: relative;
+        width: 90px;
+        height: 90px;
+      }
+
+      .compass-ring {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 1px solid rgba(0, 229, 255, 0.2);
+        background: var(--panel);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(10px);
+      }
+
+      .compass-needle {
+        position: absolute;
+        width: 2px;
+        height: 34px;
+        left: 50%;
+        transform-origin: bottom center;
+        transform: translateX(-50%) rotate(0deg);
+        transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      .needle-north {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 50%;
+        background: linear-gradient(
+          to bottom,
+          var(--accent2),
+          rgba(255, 61, 90, 0.3)
+        );
+        border-radius: 2px 2px 0 0;
+        clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+      }
+
+      .needle-south {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 50%;
+        background: linear-gradient(
+          to top,
+          rgba(0, 229, 255, 0.5),
+          rgba(0, 229, 255, 0.1)
+        );
+        clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+      }
+
+      .compass-center {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+        z-index: 2;
+        box-shadow: 0 0 8px var(--accent);
+      }
+
+      .compass-labels span {
+        position: absolute;
+        font-family: "Orbitron", monospace;
+        font-size: 0.55rem;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .compass-labels .n {
+        top: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: var(--accent);
+      }
+      .compass-labels .s {
+        bottom: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .compass-labels .e {
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      .compass-labels .w {
+        left: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      .compass-info {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .compass-stat {
+      }
+      .compass-stat .stat-label {
+        margin-bottom: 3px;
+      }
+      .compass-stat .stat-value {
+        font-size: 1.1rem;
+      }
+
+      @media (max-width: 520px) {
+        .stats-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .gps-grid {
+          grid-template-columns: 1fr;
+        }
+        .speedo-container {
+          width: 270px;
+          height: 270px;
+        }
+        .speed-value {
+          font-size: 3rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Permission Overlay -->
+    <div class="overlay" id="overlay">
+      <div class="overlay-icon">🛰️</div>
+      <h2>GPS ACCESS</h2>
+      <p>
+        VELOCITY requires location access to measure real-time speed and heading
+        from your device's GPS sensor.
+      </p>
+      <button class="btn btn-start" id="permBtn" onclick="requestGPS()">
+        ENABLE GPS TRACKING
+      </button>
+      <p
+        style="
+          margin-top: 16px;
+          font-size: 0.7rem;
+          color: #2a4060;
+          letter-spacing: 0.05em;
+        "
+      >
+        Your location data never leaves your device.
+      </p>
+    </div>
+
+    <div class="container">
+      <header>
+        <div class="logo">VELOCITY</div>
+        <div class="tagline">REAL-TIME SPEED TRACKING SYSTEM</div>
+      </header>
+
+      <div class="status-bar">
+        <div class="status-dot" id="statusDot"></div>
+        <span class="status-text" id="statusText">AWAITING GPS SIGNAL...</span>
+      </div>
+
+      <!-- Speedometer -->
+      <div class="speedo-wrap">
+        <div class="speedo-container">
+          <canvas id="speedo" width="320" height="320"></canvas>
+          <div class="speed-readout">
+            <div class="speed-value" id="speedVal">0</div>
+            <div class="speed-unit" id="speedUnit">km/h</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unit toggle -->
+      <div class="unit-toggle">
+        <button class="unit-btn active" id="btnKmh" onclick="setUnit('kmh')">
+          KM/H
+        </button>
+        <button class="unit-btn" id="btnMph" onclick="setUnit('mph')">
+          MPH
+        </button>
+        <button class="unit-btn" id="btnMs" onclick="setUnit('ms')">M/S</button>
+        <button class="unit-btn" id="btnKts" onclick="setUnit('kts')">
+          KNOTS
+        </button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">▲ PEAK SPEED</div>
+          <div class="stat-value peak" id="peakVal">0</div>
+          <div class="stat-sub" id="peakUnit">km/h</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">⊘ AVG SPEED</div>
+          <div class="stat-value" id="avgVal">0</div>
+          <div class="stat-sub" id="avgUnit">km/h</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">⟳ DISTANCE</div>
+          <div class="stat-value alt" id="distVal">0.00</div>
+          <div class="stat-sub">km</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">⧖ DURATION</div>
+          <div class="stat-value" id="durVal">00:00</div>
+          <div class="stat-sub">hh:mm</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">↕ ALTITUDE</div>
+          <div class="stat-value alt" id="altVal">—</div>
+          <div class="stat-sub">metres</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">◎ ACCURACY</div>
+          <div class="stat-value" id="accVal">—</div>
+          <div class="stat-sub">metres</div>
+          <div class="accuracy-bar">
+            <div class="accuracy-fill" id="accFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Compass + heading -->
+      <div class="compass-wrap">
+        <div class="compass">
+          <div class="compass-ring">
+            <div class="compass-labels">
+              <span class="n">N</span>
+              <span class="s">S</span>
+              <span class="e">E</span>
+              <span class="w">W</span>
+            </div>
+            <div class="compass-needle" id="needle">
+              <div class="needle-north"></div>
+              <div class="needle-south"></div>
+            </div>
+            <div class="compass-center"></div>
+          </div>
+        </div>
+        <div class="compass-info">
+          <div class="compass-stat">
+            <div class="stat-label">HEADING</div>
+            <div class="stat-value" id="headingVal">—°</div>
+          </div>
+          <div class="compass-stat">
+            <div class="stat-label">DIRECTION</div>
+            <div class="stat-value" style="font-size: 1rem" id="dirVal">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Speed graph -->
+      <div class="graph-section">
+        <div class="graph-header">
+          <span class="graph-title">SPEED HISTORY — LAST 60 SECONDS</span>
+          <div class="graph-legend">
+            <span
+              ><span class="legend-dot" style="background: var(--accent)"></span
+              >SPEED</span
+            >
+            <span
+              ><span class="legend-dot" style="background: var(--gold)"></span
+              >PEAK</span
+            >
+          </div>
+        </div>
+        <canvas id="graph" height="100"></canvas>
+      </div>
+
+      <!-- GPS coords -->
+      <div class="gps-grid">
+        <div class="gps-card">
+          <div class="gps-label">LATITUDE</div>
+          <div class="gps-value" id="latVal">—</div>
+        </div>
+        <div class="gps-card">
+          <div class="gps-label">LONGITUDE</div>
+          <div class="gps-value" id="lonVal">—</div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="action-row">
+        <button class="btn btn-reset" onclick="resetStats()">
+          RESET STATS
+        </button>
+      </div>
+    </div>
+
+    <script>
+      // ─── State ───────────────────────────────────────────────────────────────────
+      let watchId = null;
+      let unit = "kmh";
+      let currentSpeed = 0;
+      let peakSpeed = 0;
+      let totalSpeed = 0;
+      let readingCount = 0;
+      let distanceKm = 0;
+      let lastPos = null;
+      let startTime = null;
+      let timerInterval = null;
+      let speedHistory = new Array(60).fill(0);
+      let heading = null;
+
+      // ─── GPS ─────────────────────────────────────────────────────────────────────
+      function requestGPS() {
+        document.getElementById("overlay").classList.add("hidden");
+        if (!navigator.geolocation) {
+          setStatus("error", "GPS NOT SUPPORTED ON THIS DEVICE");
+          return;
+        }
+        setStatus("pending", "ACQUIRING GPS SIGNAL...");
+        watchId = navigator.geolocation.watchPosition(onPosition, onError, {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 10000,
+        });
+        startTime = Date.now();
+        timerInterval = setInterval(updateTimer, 1000);
+      }
+
+      function onPosition(pos) {
+        setStatus("active", "GPS LOCKED — TRACKING ACTIVE");
+        const speedMs = pos.coords.speed || 0;
+        currentSpeed = convertSpeed(speedMs, unit);
+        heading = pos.coords.heading;
+
+        // Stats
+        readingCount++;
+        totalSpeed += currentSpeed;
+        if (currentSpeed > peakSpeed) peakSpeed = currentSpeed;
+
+        // Distance
+        if (lastPos) {
+          const d = haversine(
+            lastPos.latitude,
+            lastPos.longitude,
+            pos.coords.latitude,
+            pos.coords.longitude,
+          );
+          distanceKm += d;
+        }
+        lastPos = pos.coords;
+
+        // History (push every update, keep 60)
+        speedHistory.push(currentSpeed);
+        if (speedHistory.length > 60) speedHistory.shift();
+
+        // Update UI
+        updateSpeedo(currentSpeed);
+        updateStats(pos);
+        drawGraph();
+        updateCompass(heading);
+      }
+
+      function onError(e) {
+        const msgs = [
+          "",
+          "PERMISSION DENIED",
+          "POSITION UNAVAILABLE",
+          "GPS TIMEOUT",
+        ];
+        setStatus("error", msgs[e.code] || "GPS ERROR");
+      }
+
+      // ─── Unit conversion ─────────────────────────────────────────────────────────
+      function convertSpeed(ms, u) {
+        if (u === "kmh") return ms * 3.6;
+        if (u === "mph") return ms * 2.237;
+        if (u === "ms") return ms;
+        if (u === "kts") return ms * 1.944;
+        return ms * 3.6;
+      }
+
+      function unitLabel(u) {
+        if (u === "kmh") return "km/h";
+        if (u === "mph") return "mph";
+        if (u === "ms") return "m/s";
+        if (u === "kts") return "knots";
+      }
+
+      function maxForUnit(u) {
+        if (u === "kmh") return 240;
+        if (u === "mph") return 150;
+        if (u === "ms") return 70;
+        if (u === "kts") return 130;
+      }
+
+      function setUnit(u) {
+        unit = u;
+        ["btnKmh", "btnMph", "btnMs", "btnKts"].forEach((id) =>
+          document.getElementById(id).classList.remove("active"),
+        );
+        const map = {
+          kmh: "btnKmh",
+          mph: "btnMph",
+          ms: "btnMs",
+          kts: "btnKts",
+        };
+        document.getElementById(map[u]).classList.add("active");
+        document.getElementById("speedUnit").textContent = unitLabel(u);
+        document.getElementById("peakUnit").textContent = unitLabel(u);
+        document.getElementById("avgUnit").textContent = unitLabel(u);
+        // Recalculate from latest reading
+        if (lastPos && lastPos.speed != null) {
+          currentSpeed = convertSpeed(lastPos.speed || 0, u);
+        }
+        updateSpeedo(currentSpeed);
+      }
+
+      // ─── Speedometer canvas ───────────────────────────────────────────────────────
+      const speedoCanvas = document.getElementById("speedo");
+      const ctx = speedoCanvas.getContext("2d");
+
+      function updateSpeedo(speed) {
+        const max = maxForUnit(unit);
+        const pct = Math.min(speed / max, 1);
+
+        ctx.clearRect(0, 0, 320, 320);
+        const cx = 160,
+          cy = 160,
+          r = 130;
+        const startAngle = Math.PI * 0.75;
+        const endAngle = Math.PI * 2.25;
+
+        // Outer ring glow
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(0,229,255,0.06)";
+        ctx.lineWidth = 12;
+        ctx.stroke();
+
+        // Track
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, startAngle, endAngle);
+        ctx.strokeStyle = "rgba(0,229,255,0.08)";
+        ctx.lineWidth = 14;
+        ctx.lineCap = "round";
+        ctx.stroke();
+
+        // Tick marks
+        const totalTicks = 24;
+        for (let i = 0; i <= totalTicks; i++) {
+          const t = i / totalTicks;
+          const angle = startAngle + t * (endAngle - startAngle);
+          const isMajor = i % 4 === 0;
+          const inner = isMajor ? r - 18 : r - 10;
+          ctx.beginPath();
+          ctx.moveTo(
+            cx + Math.cos(angle) * (r + 8),
+            cy + Math.sin(angle) * (r + 8),
+          );
+          ctx.lineTo(
+            cx + Math.cos(angle) * inner,
+            cy + Math.sin(angle) * inner,
+          );
+          ctx.strokeStyle = isMajor
+            ? "rgba(0,229,255,0.5)"
+            : "rgba(0,229,255,0.18)";
+          ctx.lineWidth = isMajor ? 2 : 1;
+          ctx.stroke();
+        }
+
+        // Speed labels
+        ctx.font = "bold 11px Orbitron, monospace";
+        ctx.fillStyle = "rgba(0,229,255,0.5)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const steps = [0, 0.25, 0.5, 0.75, 1];
+        steps.forEach((t) => {
+          const angle = startAngle + t * (endAngle - startAngle);
+          const lx = cx + Math.cos(angle) * (r - 32);
+          const ly = cy + Math.sin(angle) * (r - 32);
+          ctx.fillText(Math.round(max * t), lx, ly);
+        });
+
+        // Color zones
+        const zones = [
+          { from: 0, to: 0.33, color: "#00e5ff" },
+          { from: 0.33, to: 0.66, color: "#7fff00" },
+          { from: 0.66, to: 0.85, color: "#ffd700" },
+          { from: 0.85, to: 1, color: "#ff3d5a" },
+        ];
+        zones.forEach((z) => {
+          const sa = startAngle + z.from * (endAngle - startAngle);
+          const ea = startAngle + Math.min(pct, z.to) * (endAngle - startAngle);
+          if (pct > z.from) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, sa, ea);
+            ctx.strokeStyle = z.color;
+            ctx.lineWidth = 14;
+            ctx.lineCap = "round";
+            ctx.shadowColor = z.color;
+            ctx.shadowBlur = 18;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+          }
+        });
+
+        // Needle
+        const needleAngle = startAngle + pct * (endAngle - startAngle);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(needleAngle);
+        // needle body
+        const grad = ctx.createLinearGradient(0, -r + 20, 0, 15);
+        grad.addColorStop(0, "#ff3d5a");
+        grad.addColorStop(1, "rgba(255,61,90,0)");
+        ctx.beginPath();
+        ctx.moveTo(-2, 15);
+        ctx.lineTo(2, 15);
+        ctx.lineTo(1, -(r - 24));
+        ctx.lineTo(-1, -(r - 24));
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.shadowColor = "#ff3d5a";
+        ctx.shadowBlur = 14;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+
+        // Center cap
+        const capGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 14);
+        capGrad.addColorStop(0, "#2a5070");
+        capGrad.addColorStop(1, "#0a1828");
+        ctx.beginPath();
+        ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+        ctx.fillStyle = capGrad;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+        ctx.fillStyle = "#ff3d5a";
+        ctx.shadowColor = "#ff3d5a";
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Update digital readout
+        document.getElementById("speedVal").textContent = Math.round(speed);
+
+        // Color readout by speed
+        const el = document.getElementById("speedVal");
+        if (pct > 0.85) el.style.color = "#ff3d5a";
+        else if (pct > 0.66) el.style.color = "#ffd700";
+        else el.style.color = "#ffffff";
+      }
+
+      // ─── Graph ────────────────────────────────────────────────────────────────────
+      const graphCanvas = document.getElementById("graph");
+      const gctx = graphCanvas.getContext("2d");
+
+      function drawGraph() {
+        const W = graphCanvas.offsetWidth,
+          H = 100;
+        graphCanvas.width = W;
+        graphCanvas.height = H;
+        gctx.clearRect(0, 0, W, H);
+
+        const max = Math.max(maxForUnit(unit) * 0.25, ...speedHistory, 10);
+        const step = W / (speedHistory.length - 1);
+
+        // Grid lines
+        for (let i = 0; i <= 4; i++) {
+          const y = H - (i / 4) * H;
+          gctx.beginPath();
+          gctx.moveTo(0, y);
+          gctx.lineTo(W, y);
+          gctx.strokeStyle = "rgba(0,229,255,0.07)";
+          gctx.lineWidth = 1;
+          gctx.stroke();
+        }
+
+        // Peak line
+        const peakY = H - (peakSpeed / max) * H;
+        gctx.beginPath();
+        gctx.moveTo(0, peakY);
+        gctx.lineTo(W, peakY);
+        gctx.strokeStyle = "rgba(255,215,0,0.3)";
+        gctx.setLineDash([4, 4]);
+        gctx.lineWidth = 1;
+        gctx.stroke();
+        gctx.setLineDash([]);
+
+        // Area fill
+        const areaGrad = gctx.createLinearGradient(0, 0, 0, H);
+        areaGrad.addColorStop(0, "rgba(0,229,255,0.25)");
+        areaGrad.addColorStop(1, "rgba(0,229,255,0.0)");
+
+        gctx.beginPath();
+        speedHistory.forEach((s, i) => {
+          const x = i * step;
+          const y = H - (s / max) * H;
+          i === 0 ? gctx.moveTo(x, y) : gctx.lineTo(x, y);
+        });
+        gctx.lineTo((speedHistory.length - 1) * step, H);
+        gctx.lineTo(0, H);
+        gctx.closePath();
+        gctx.fillStyle = areaGrad;
+        gctx.fill();
+
+        // Line
+        gctx.beginPath();
+        speedHistory.forEach((s, i) => {
+          const x = i * step;
+          const y = H - (s / max) * H;
+          i === 0 ? gctx.moveTo(x, y) : gctx.lineTo(x, y);
+        });
+        gctx.strokeStyle = "#00e5ff";
+        gctx.lineWidth = 2;
+        gctx.shadowColor = "#00e5ff";
+        gctx.shadowBlur = 8;
+        gctx.stroke();
+        gctx.shadowBlur = 0;
+
+        // Dot at current
+        const lastX = (speedHistory.length - 1) * step;
+        const lastY = H - (speedHistory[speedHistory.length - 1] / max) * H;
+        gctx.beginPath();
+        gctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+        gctx.fillStyle = "#00e5ff";
+        gctx.shadowColor = "#00e5ff";
+        gctx.shadowBlur = 12;
+        gctx.fill();
+        gctx.shadowBlur = 0;
+      }
+
+      // ─── Compass ─────────────────────────────────────────────────────────────────
+      function updateCompass(h) {
+        if (h == null || isNaN(h)) {
+          document.getElementById("headingVal").textContent = "—°";
+          document.getElementById("dirVal").textContent = "—";
+          return;
+        }
+        document.getElementById("needle").style.transform =
+          `translateX(-50%) rotate(${h}deg)`;
+        document.getElementById("headingVal").textContent = Math.round(h) + "°";
+        const dirs = [
+          "N",
+          "NNE",
+          "NE",
+          "ENE",
+          "E",
+          "ESE",
+          "SE",
+          "SSE",
+          "S",
+          "SSW",
+          "SW",
+          "WSW",
+          "W",
+          "WNW",
+          "NW",
+          "NNW",
+        ];
+        document.getElementById("dirVal").textContent =
+          dirs[Math.round(h / 22.5) % 16];
+      }
+
+      // ─── Stats update ─────────────────────────────────────────────────────────────
+      function updateStats(pos) {
+        const avg = readingCount > 0 ? totalSpeed / readingCount : 0;
+        document.getElementById("peakVal").textContent = Math.round(peakSpeed);
+        document.getElementById("avgVal").textContent = Math.round(avg);
+        document.getElementById("distVal").textContent = distanceKm.toFixed(2);
+
+        const alt = pos.coords.altitude;
+        document.getElementById("altVal").textContent =
+          alt != null ? Math.round(alt) : "—";
+
+        const acc = pos.coords.accuracy;
+        document.getElementById("accVal").textContent =
+          acc != null ? Math.round(acc) : "—";
+
+        // Accuracy bar: 100% = 5m, 0% = 200m
+        if (acc != null) {
+          const pct = Math.max(0, Math.min(100, ((200 - acc) / 195) * 100));
+          document.getElementById("accFill").style.width = pct + "%";
+        }
+
+        document.getElementById("latVal").textContent =
+          pos.coords.latitude.toFixed(6) + "°";
+        document.getElementById("lonVal").textContent =
+          pos.coords.longitude.toFixed(6) + "°";
+      }
+
+      // ─── Timer ───────────────────────────────────────────────────────────────────
+      function updateTimer() {
+        if (!startTime) return;
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const h = Math.floor(elapsed / 3600);
+        const m = Math.floor((elapsed % 3600) / 60);
+        document.getElementById("durVal").textContent =
+          String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+      }
+
+      // ─── Haversine distance ───────────────────────────────────────────────────────
+      function haversine(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLon / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      }
+
+      // ─── Status ───────────────────────────────────────────────────────────────────
+      function setStatus(state, msg) {
+        const dot = document.getElementById("statusDot");
+        const txt = document.getElementById("statusText");
+        dot.className = "status-dot";
+        if (state === "active") dot.classList.add("active");
+        if (state === "error") dot.classList.add("error");
+        txt.textContent = msg;
+      }
+
+      // ─── Reset ────────────────────────────────────────────────────────────────────
+      function resetStats() {
+        peakSpeed = 0;
+        totalSpeed = 0;
+        readingCount = 0;
+        distanceKm = 0;
+        lastPos = null;
+        speedHistory = new Array(60).fill(0);
+        startTime = watchId ? Date.now() : null;
+        document.getElementById("peakVal").textContent = "0";
+        document.getElementById("avgVal").textContent = "0";
+        document.getElementById("distVal").textContent = "0.00";
+        document.getElementById("durVal").textContent = "00:00";
+        drawGraph();
+      }
+
+      // ─── Init ─────────────────────────────────────────────────────────────────────
+      updateSpeedo(0);
+      drawGraph();
+
+      window.addEventListener("resize", () => {
+        drawGraph();
+        updateSpeedo(currentSpeed);
+      });
+    </script>
+  </body>
+</html>
